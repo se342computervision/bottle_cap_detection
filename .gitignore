@@ -1,0 +1,5 @@
+venv/
+hog/
+query/
+train/
+.idea/
