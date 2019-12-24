@@ -6,8 +6,13 @@
 import os
 import numpy as np
 import cv2
+import pickle
 
 from skimage.feature import hog
+
+HOG_WEIGHT = 0.7  # HOG is good
+HOG_WEIGHT_LESS = 0.3  # SIFT is good
+HEURIS_BACK_SOFTMAX = 50  # heuristic choose BACK
 
 FRONT = 0
 BACK = 1
@@ -15,6 +20,7 @@ SIDE = 2
 NONE = 3
 
 direct_lower_str = ['front', 'back', 'side']
+
 
 def hog_des(img_query):
     """
@@ -42,88 +48,101 @@ def hog_des(img_query):
     save_fd(fd)
     return fd
 
+
 def save_fd(fd):
     """
     :param fd: HOG descriptor lists
     """
-    for direct in range(FRONT, NONE):
-        i = 0
-        for fd_array in fd[direct]:
-            if isinstance(fd_array, list):
-                j = 0
-                for fd_array_temp in fd_array:
-                    np.savetxt('./hog/' + direct_lower_str[direct] + str(i) + '-' + str(j)+ '.txt', fd_array_temp, delimiter=',')
-                    j += 1
-            else:
-                np.savetxt('./hog/'+direct_lower_str[direct]+str(i)+'.txt', fd_array, delimiter = ',')
-            i += 1
+    with open('./hog/fd.dat', 'wb') as f:
+        pickle.dump(fd, f)
+
 
 def load_fd():
     """
     :return: HOG descriptor lists
     """
-    fd = [[], [], []]
-    for direct in range(FRONT, NONE):
-        i = 0
-        filename = './hog/'+direct_lower_str[direct]+str(i)+'.txt'
-        filename_aug = './hog/'+direct_lower_str[direct]+str(i)+'-0.txt'
-        while os.path.exists(filename) or os.path.exists(filename_aug):
-            if os.path.exists(filename_aug):
-                assert not os.path.exists(filename)
-                assert not os.path.exists('./hog/'+direct_lower_str[direct]+str(i)+'-12.txt')
-                fd_array = []
-                for rotidx in range(0,12):
-                    filename_temp = './hog/'+direct_lower_str[direct]+str(i)+'-'+str(rotidx)+'.txt'
-                    fd_array_temp = np.loadtxt(filename_temp,dtype=np.float64)
-                    fd_array.append(fd_array_temp)
-                fd[direct].append(fd_array)
-            else:
-                fd_array = np.loadtxt(filename,dtype=np.float64)
-                fd[direct].append(fd_array)
-            i += 1
-            filename = './hog/' + direct_lower_str[direct] + str(i) + '.txt'
-            filename_aug = './hog/' + direct_lower_str[direct] + str(i) + '-0.txt'
+    target = './hog/fd.dat'
+    if os.path.getsize(target) > 0:
+        with open(target, "rb") as f:
+            unpickler = pickle.Unpickler(f)
+            fd = unpickler.load()
     return fd
 
-def hog_match(fd, img_query, img_query_name, img_train):
+
+def hog_match(fd, img_query, img_query_name, img_train, softmax_sift=None, good_sift=False):
     """
     :param fd: HOG descriptor lists
     :param img_query: query image lists
     :param img_query_name: query image name lists
     :param img_train: target image
-    :return: image type, image matched, matched image json, softmax list
+    :param softmax_sift: ensemble matching result in SIFT and HOG
+    :return: image type, image matched, matched image json
     """
     train_temp = cv2.resize(img_train, (512, 512))
     fd_train, hog_train = hog(train_temp, orientations=8, pixels_per_cell=(4, 4),
                               cells_per_block=(1, 1), visualize=True, multichannel=True)
     softmax = [[], [], []]
     img_selected = [None, None, None]
+    op_min_dis = [[], [], []]
     for direct in range(FRONT, NONE):
         op_min = None
         for fd_query, query, filename in zip(fd[direct], img_query[direct], img_query_name[direct]):
             if isinstance(fd_query, list):
-                for fd_query_temp in fd_query:
+                softmax_tempmax = None
+                for fd_query_temp, query_temp in zip(fd_query, query):
                     op = np.linalg.norm(fd_query_temp - fd_train)
                     if op_min is None or op < op_min:
                         op_min = op
-                        img_selected[direct] = (query, filename)
-                    softmax[direct].append(np.exp(op))
+                        img_selected[direct] = (query_temp, filename)
+                    softmax_temp = np.exp(-op)
+                    if softmax_tempmax is None or softmax_temp > softmax_tempmax:
+                        softmax_tempmax = softmax_temp
+                softmax[direct].append(softmax_tempmax)
             else:
-                op = np.linalg.norm(fd_query-fd_train)
+                op = np.linalg.norm(fd_query - fd_train)
                 if op_min is None or op < op_min:
                     op_min = op
                     img_selected[direct] = (query, filename)
-                softmax[direct].append(np.exp(op))
-    softsum = np.sum(softmax[FRONT])+np.sum(softmax[BACK])+np.sum(softmax[SIDE])
+                softmax[direct].append(np.exp(-op))
+        op_min_dis[direct] = op_min
+    softsum = np.sum(softmax[FRONT]) + np.sum(softmax[BACK]) + np.sum(softmax[SIDE])
+    ensemble_softmax = [[], [], []]
     for direct in range(FRONT, NONE):
         softmax[direct] = softmax[direct] / softsum
+        ensemble_softmax[direct] = softmax[direct]
+        # if softmax_sift is None:
+        #     ensemble_softmax[direct] = softmax[direct]
+        # else:
+        #     if good_sift is True:
+        #         ensemble_softmax[direct] = softmax[direct] * HOG_WEIGHT_LESS + softmax_sift[direct] * (1 - HOG_WEIGHT_LESS)
+        #     else:
+        #         ensemble_softmax[direct] = softmax[direct] * HOG_WEIGHT + softmax_sift[direct] * (1 - HOG_WEIGHT)
     img_type = NONE
-    min_softmax = 1
+    max_softmax = 0
     img_final_selected = None
     for direct in range(FRONT, NONE):
-        if min(softmax[direct]) < min_softmax:
-            min_softmax =min(softmax[direct])
+        if len(ensemble_softmax[direct]) == 0:
+            continue
+        if max(ensemble_softmax[direct]) > max_softmax:
+            max_softmax = max(ensemble_softmax[direct])
             img_type = direct
             img_final_selected = img_selected[direct]
-    return img_type, img_final_selected[0], img_final_selected[1], softmax
 
+    # heuristic: back SIFT softmax is much larger then front, choose back
+    a = HEURIS_BACK_SOFTMAX * max(softmax_sift[FRONT])
+    b = max(softmax_sift[BACK])
+    if op_min_dis[FRONT] - 3 < op_min_dis[BACK] < op_min_dis[FRONT] + 3 and \
+            (min(op_min_dis) > 102 or op_min_dis[FRONT] - 0.5 < op_min_dis[BACK] < op_min_dis[FRONT] + 0.5) \
+            and HEURIS_BACK_SOFTMAX * max(softmax[BACK]) > max(softmax[FRONT]) and \
+            max(softmax_sift[BACK]) > HEURIS_BACK_SOFTMAX * max(softmax_sift[FRONT]) and \
+            (img_type == FRONT or img_type == BACK):
+        img_type = BACK
+        for query, filename, softmax_temp in zip(img_query[BACK], img_query_name[BACK], softmax_sift[BACK]):
+            if softmax_temp == max(softmax_sift[BACK]):
+                if isinstance(query, list):
+                    img_selected[BACK] = (query[0], filename)
+                else:
+                    img_selected[BACK] = (query, filename)
+        img_final_selected = img_selected[BACK]
+
+    return img_type, img_final_selected[0], img_final_selected[1]

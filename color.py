@@ -9,12 +9,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from labelme import utils
 
-CANNY_LOWER_THRESHOLD = 20 # default 50
-CANNY_HIGHER_THRESHOLD = 80 # default 150
-GAUSSIAN_KERNEL_SIZE = 5 # default 3
-DILATE_EDGE_KERNEL_SIZE = 11 # default 3
+CANNY_LOWER_THRESHOLD = 20  # default 50
+CANNY_HIGHER_THRESHOLD = 80  # default 150
+GAUSSIAN_KERNEL_SIZE = 5  # default 3
+DILATE_EDGE_KERNEL_SIZE = 11  # default 3
 
 FILL = 1
+
 
 def colored_mask(filename):
     """
@@ -32,6 +33,6 @@ def colored_mask(filename):
     for h in range(0, lbl.shape[0]):
         for w in range(0, lbl.shape[1]):
             if lbl[h, w] == lbl_names['origin']:
-                return (lbl == lbl_names['edge']).astype(np.uint8), (h,w)
+                return (lbl == lbl_names['edge']).astype(np.uint8), (h, w)
 
 # colored_mask('query/back/green.json')

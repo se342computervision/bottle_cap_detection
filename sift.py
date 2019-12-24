@@ -18,8 +18,9 @@ FRONT = 0
 BACK = 1
 SIDE = 2
 NONE = 3
-direct_str = ['FRONT','BACK','SIDE']
+direct_str = ['FRONT', 'BACK', 'SIDE']
 direct_lower_str = ['front', 'back', 'side']
+
 
 def sift_init():
     """
@@ -78,18 +79,19 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des):
     img_train_hog = input_image.copy()
 
     # SIFT feature detect
-    kp_train, des_train = orb.detectAndCompute(img_train,None)
+    kp_train, des_train = orb.detectAndCompute(img_train, None)
     if des_train is None:
         print("SIFT cannot detect keypoints and descriptor")
         # fallback to HOG matching
-        selected, img_selected, img_selected_name, softmax = hog.hog_match(fd, query_img_hog, query_img_name, img_train_hog)
+        selected, img_selected, img_selected_name, softmax = hog.hog_match(fd, query_img_hog, query_img_name,
+                                                                           img_train_hog)
         print("%s (HOG)\n\n" % direct_str[selected])
-        img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0])+'.json')
+        img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json')
         return selected, img_mask, origin_point
 
     # use FLANN matcher
-    index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-    search_params = dict(checks = 50)
+    index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+    search_params = dict(checks=50)
     flann = cv2.FlannBasedMatcher(index_params, search_params)
     matches = [[], [], []]
     for direct in range(FRONT, NONE):
@@ -110,18 +112,18 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des):
         for img_temp, img_temp_name, kp_temp, des_temp, matches_temp in zip(query_img[direct], query_img_name[direct],
                                                                             kp[direct], des[direct], matches[direct]):
             good = []
-            for m,n in matches_temp:
+            for m, n in matches_temp:
                 if m.distance < RATIO_TEST_DISTANCE * n.distance:
                     good.append(m)
 
             if len(good) > MIN_MATCH_COUNT:
-                src_pts = np.float32([ kp_temp[m.queryIdx].pt for m in good ]).reshape(-1,1,2)
-                dst_pts = np.float32([ kp_train[m.trainIdx].pt for m in good ]).reshape(-1,1,2)
+                src_pts = np.float32([kp_temp[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
+                dst_pts = np.float32([kp_train[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
-                M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC,5.0)
+                M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
 
                 # no matches is inlier, skip this train image
-                if M is None :
+                if M is None:
                     continue
 
                 matchesMask = mask.ravel().tolist()
@@ -135,15 +137,15 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des):
     if selected == NONE:
         print("too less matches found by SIFT")
         # fallback to HOG matching
-        selected, img_selected, img_selected_name, softmax = hog.hog_match(fd, query_img_hog, query_img_name, img_train_hog)
+        selected, img_selected, img_selected_name, softmax = hog.hog_match(fd, query_img_hog, query_img_name,
+                                                                           img_train_hog)
         print("%s (HOG)\n\n" % direct_str[selected])
-        img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0])+'.json')
+        img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json')
         return selected, img_mask, origin_point
     else:
         print("%s (SIFT)\n\n" % direct_str[selected])
-        img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0])+'.json')
+        img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json')
         return selected, img_mask, origin_point
-
 
 # input_image0 = cv2.imread("train/test.png")
 # query_img0, query_img_hog0, query_img_name0, kp0, des0 = sift_init()
