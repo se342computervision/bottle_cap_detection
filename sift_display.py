@@ -38,7 +38,6 @@ for direct in range(FRONT, NONE):
             if filename[-4:] != '.png' and filename[-4:] != '.jpg':
                 continue
             imgname[direct].append(filename)
-            # img[direct].append(cv2.resize(cv2.imread(filename,0), (512, 512)))
             img[direct].append(cv2.imread(filename, cv2.IMREAD_GRAYSCALE))
             img_hog[direct].append(cv2.imread(filename))
         # rotate query img in rotate directory for augmentation
@@ -81,11 +80,6 @@ for direct in range(FRONT, NONE):
             kp[direct].append(None)
             des[direct].append(None)
             continue
-        # if len(kp_temp) < 30:
-        #     print(img_name + ": SIFT detect too less keypoints - " + str(len(kp_temp)))
-        #     kp[direct].append(None)
-        #     des[direct].append(None)
-        #     continue
         kp[direct].append(kp_temp)
         des[direct].append(des_temp)
 
@@ -157,23 +151,13 @@ for base_path, folder_list, file_list in os.walk('train'):
                         good.append(m)
 
                 # softmax evaluation for SIFT match, used in HOG match
-                # softmax_sift[direct].append(np.exp(len(good)))
-                # if len(good) >= 5:
-                #     good_sift = True
-                softmax_sift[direct].append(len(good))
-                # if len(good) == 29:
-                #     a = 1
+                softmax_sift[direct].append(np.exp(len(good)))
 
                 if len(good) > MIN_MATCH_COUNT:
                     src_pts = np.float32([kp_temp[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
                     dst_pts = np.float32([kp_train[m.trainIdx].pt for m in good]).reshape(-1, 1, 2)
 
                     M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 5.0)
-
-                    # a = sum(mask)[0]
-                    # softmax_sift[direct].append(np.exp(sum(mask)[0]))
-                    # if len(good) >= 5:
-                    #     good_sift = True
 
                     # no matches is inlier, skip this train image
                     if M is None:
@@ -195,8 +179,6 @@ for base_path, folder_list, file_list in os.walk('train'):
                         kp_selected = kp_temp
                         good_selected = good
                         img_train_matched = cv2.polylines(img_train, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
-                # else:
-                #     softmax_sift[direct].append(np.exp(0))
 
         if selected == NONE:
             print("%s: Not enough matches are found by SIFT" % filename)
@@ -208,7 +190,7 @@ for base_path, folder_list, file_list in os.walk('train'):
                     softmax_sift[direct_temp] = softmax_sift[direct_temp] / softmax_sum
                 # fallback to HOG matching
                 selected, img_selected, img_selected_name = hog.hog_match(fd, img_hog, imgname, img_train_hog,
-                                                                          softmax_sift, good_sift)
+                                                                          softmax_sift)
                 print("%s is %s (HOG)" % (filename, direct_str[selected]))
                 # img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json')
                 img_output = cv2.drawMatches(img_selected, None, img_train, None, None, None, None)

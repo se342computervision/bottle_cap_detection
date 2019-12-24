@@ -12,7 +12,7 @@ from skimage.feature import hog
 
 HOG_WEIGHT = 0.7  # HOG is good
 HOG_WEIGHT_LESS = 0.3  # SIFT is good
-HEURIS_BACK_SOFTMAX = 50  # heuristic choose BACK
+HEURIS_BACK_SOFTMAX = 30  # default 50, heuristic choose BACK
 
 FRONT = 0
 BACK = 1
@@ -69,7 +69,7 @@ def load_fd():
     return fd
 
 
-def hog_match(fd, img_query, img_query_name, img_train, softmax_sift=None, good_sift=False):
+def hog_match(fd, img_query, img_query_name, img_train, softmax_sift=None):
     """
     :param fd: HOG descriptor lists
     :param img_query: query image lists
@@ -106,31 +106,18 @@ def hog_match(fd, img_query, img_query_name, img_train, softmax_sift=None, good_
                 softmax[direct].append(np.exp(-op))
         op_min_dis[direct] = op_min
     softsum = np.sum(softmax[FRONT]) + np.sum(softmax[BACK]) + np.sum(softmax[SIDE])
-    ensemble_softmax = [[], [], []]
     for direct in range(FRONT, NONE):
         softmax[direct] = softmax[direct] / softsum
-        ensemble_softmax[direct] = softmax[direct]
-        # if softmax_sift is None:
-        #     ensemble_softmax[direct] = softmax[direct]
-        # else:
-        #     if good_sift is True:
-        #         ensemble_softmax[direct] = softmax[direct] * HOG_WEIGHT_LESS + softmax_sift[direct] * (1 - HOG_WEIGHT_LESS)
-        #     else:
-        #         ensemble_softmax[direct] = softmax[direct] * HOG_WEIGHT + softmax_sift[direct] * (1 - HOG_WEIGHT)
     img_type = NONE
     max_softmax = 0
     img_final_selected = None
     for direct in range(FRONT, NONE):
-        if len(ensemble_softmax[direct]) == 0:
-            continue
-        if max(ensemble_softmax[direct]) > max_softmax:
-            max_softmax = max(ensemble_softmax[direct])
+        if max(softmax[direct]) > max_softmax:
+            max_softmax = max(softmax[direct])
             img_type = direct
             img_final_selected = img_selected[direct]
 
     # heuristic: back SIFT softmax is much larger then front, choose back
-    a = HEURIS_BACK_SOFTMAX * max(softmax_sift[FRONT])
-    b = max(softmax_sift[BACK])
     if op_min_dis[FRONT] - 3 < op_min_dis[BACK] < op_min_dis[FRONT] + 3 and \
             (min(op_min_dis) > 102 or op_min_dis[FRONT] - 0.5 < op_min_dis[BACK] < op_min_dis[FRONT] + 0.5) \
             and HEURIS_BACK_SOFTMAX * max(softmax[BACK]) > max(softmax[FRONT]) and \
