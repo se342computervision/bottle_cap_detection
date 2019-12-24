@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 import hog
 import color
+import rotation
 
 # match threshold
 MIN_MATCH_COUNT = 10  # default 10
@@ -41,6 +42,26 @@ def sift_init():
                 query_img_name[direct].append(filename)
                 query_img[direct].append(cv2.imread(filename, cv2.IMREAD_GRAYSCALE))
                 query_img_hog[direct].append(cv2.imread(filename))
+            # rotate query img in rotate directory for augmentation
+            for folder_name in folder_list:
+                if folder_name != 'rotate':
+                    continue
+                for base_path_rot, folder_list_rot, file_list_rot in os.walk(
+                        'query/' + direct_lower_str[direct] + '/rotate'):
+                    for file_name_rot in file_list_rot:
+                        filename_rot = os.path.join(base_path_rot, file_name_rot)
+                        if filename_rot[-4:] != '.png' and filename_rot[-4:] != '.jpg':
+                            continue
+                        query_img_name[direct].append(filename_rot)
+                        query_img[direct].append(cv2.imread(filename_rot, cv2.IMREAD_GRAYSCALE))
+                        img_hog_temp = cv2.imread(filename_rot)
+                        img_hog_aug = rotation.rotate(img_hog_temp)
+                        query_img_hog[direct].append(img_hog_aug)
+            break  # only traverse top level
+
+    # Initiate HOG fd
+    # fd = hog.hog_des(img_hog)
+    fd = hog.load_fd()
 
     # Initiate SIFT detector
     orb = cv2.ORB_create()
@@ -51,14 +72,16 @@ def sift_init():
             kp_temp, des_temp = orb.detectAndCompute(img_temp, None)
             if des_temp is None:
                 print(img_name + ": SIFT cannot detect keypoints and descriptor")
-                exit()
+                kp[direct].append(None)
+                des[direct].append(None)
+                continue
             kp[direct].append(kp_temp)
             des[direct].append(des_temp)
-    return query_img, query_img_hog, query_img_name, kp, des
+    return query_img, query_img_hog, query_img_name, kp, des, fd
 
 
 # load query images
-def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des):
+def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des, fd):
     """
     :param input_image
     :param query_img
@@ -66,14 +89,11 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des):
     :param query_img_name
     :param kp
     :param des
+    :param fd
     :return: bottle cap position(FRONT=0, BACK=1, SIDE=2), mask for coloring, origin point on mask
     """
     # Initiate SIFT detector
     orb = cv2.ORB_create()
-
-    # Initiate HOG fd
-    # fd = hog.hog_des(img_hog)
-    fd = hog.load_fd()
 
     img_train = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
     img_train_hog = input_image.copy()
@@ -83,8 +103,7 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des):
     if des_train is None:
         print("SIFT cannot detect keypoints and descriptor")
         # fallback to HOG matching
-        selected, img_selected, img_selected_name, softmax = hog.hog_match(fd, query_img_hog, query_img_name,
-                                                                           img_train_hog)
+        selected, img_selected, img_selected_name = hog.hog_match(fd, query_img_hog, query_img_name, img_train_hog)
         print("%s (HOG)\n\n" % direct_str[selected])
         img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json')
         return selected, img_mask, origin_point
@@ -96,25 +115,40 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des):
     matches = [[], [], []]
     for direct in range(FRONT, NONE):
         for des_temp in des[direct]:
-            li = flann.knnMatch(np.asarray(des_temp, np.float32), np.asarray(des_train, np.float32), k=2)
-            if len(li) == 1:
+            if des_temp is None:
+                matches[direct].append(None)
+                continue
+            matched = flann.knnMatch(np.asarray(des_temp, np.float32), np.asarray(des_train, np.float32), k=2)
+            if len(matched) == 1:
                 print("error")
                 exit()
-            matches[direct].append(
-                flann.knnMatch(np.asarray(des_temp, np.float32), np.asarray(des_train, np.float32), k=2))
+            matches[direct].append(matched)
 
     # store all the good matches as per Lowe's ratio test.
     selected = NONE
     max_match = 0
-    # img_selected = None
+    matchesMask = None
+    img_selected = None
+    kp_selected = None
+    good_selected = None
+    mask_selected = None
     img_selected_name = None
+    softmax_sift = [[], [], []]
     for direct in range(FRONT, NONE):
         for img_temp, img_temp_name, kp_temp, des_temp, matches_temp in zip(query_img[direct], query_img_name[direct],
                                                                             kp[direct], des[direct], matches[direct]):
+            # SIFT cannot detect this query img, skip it
+            if kp_temp is None or des_temp is None or matches_temp is None:
+                softmax_sift[direct].append(np.exp(0))
+                continue
+
             good = []
             for m, n in matches_temp:
                 if m.distance < RATIO_TEST_DISTANCE * n.distance:
                     good.append(m)
+
+            # softmax evaluation for SIFT match, used in HOG match
+            softmax_sift[direct].append(np.exp(len(good)))
 
             if len(good) > MIN_MATCH_COUNT:
                 src_pts = np.float32([kp_temp[m.queryIdx].pt for m in good]).reshape(-1, 1, 2)
@@ -137,8 +171,11 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des):
     if selected == NONE:
         print("too less matches found by SIFT")
         # fallback to HOG matching
-        selected, img_selected, img_selected_name, softmax = hog.hog_match(fd, query_img_hog, query_img_name,
-                                                                           img_train_hog)
+        softmax_sum = sum(softmax_sift[FRONT]) + sum(softmax_sift[BACK]) + sum(softmax_sift[SIDE])
+        for direct_temp in range(FRONT, NONE):
+            softmax_sift[direct_temp] = softmax_sift[direct_temp] / softmax_sum
+        selected, img_selected, img_selected_name = hog.hog_match(fd, query_img_hog, query_img_name,
+                                                                           img_train_hog, softmax_sift)
         print("%s (HOG)\n\n" % direct_str[selected])
         img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json')
         return selected, img_mask, origin_point
@@ -147,6 +184,9 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des):
         img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json')
         return selected, img_mask, origin_point
 
-# input_image0 = cv2.imread("train/test.png")
-# query_img0, query_img_hog0, query_img_name0, kp0, des0 = sift_init()
-# selected0, img_mask0, origin_point0 = sift_match(input_image0, query_img0, query_img_hog0, query_img_name0, kp0, des0)
+
+if __name__ == "__main__":
+    input_image0 = cv2.imread("train/DSC02776-7-2868-2668.jpg")
+    query_img0, query_img_hog0, query_img_name0, kp0, des0, fd0 = sift_init()
+    selected0, img_mask0, origin_point0 = sift_match(input_image0, query_img0, query_img_hog0, query_img_name0, kp0, des0, fd0)
+    a = 0

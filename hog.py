@@ -118,7 +118,7 @@ def hog_match(fd, img_query, img_query_name, img_train, softmax_sift=None):
             img_final_selected = img_selected[direct]
 
     # heuristic: back SIFT softmax is much larger then front, choose back
-    if op_min_dis[FRONT] - 3 < op_min_dis[BACK] < op_min_dis[FRONT] + 3 and \
+    if softmax_sift is not None and op_min_dis[FRONT] - 3 < op_min_dis[BACK] < op_min_dis[FRONT] + 3 and \
             (min(op_min_dis) > 102 or op_min_dis[FRONT] - 0.5 < op_min_dis[BACK] < op_min_dis[FRONT] + 0.5) \
             and HEURIS_BACK_SOFTMAX * max(softmax[BACK]) > max(softmax[FRONT]) and \
             max(softmax_sift[BACK]) > HEURIS_BACK_SOFTMAX * max(softmax_sift[FRONT]) and \

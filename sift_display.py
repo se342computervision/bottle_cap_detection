@@ -132,7 +132,6 @@ for base_path, folder_list, file_list in os.walk('train'):
         mask_selected = None
         img_selected_name = None
         softmax_sift = [[], [], []]
-        good_sift = False
         assert len(img) == len(img_hog) == len(imgname) == len(kp) == len(des) == len(matches)
         if HOG_APP:
             assert len(img) == len(fd)
