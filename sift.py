@@ -9,9 +9,13 @@ import cv2
 import hog
 import color
 import rotation
+from matplotlib import pyplot as plt
+
+# dump matching result
+DUMP = 0
 
 # match threshold
-MIN_MATCH_COUNT = 10  # default 10
+MIN_MATCH_COUNT = 13  # default 10, choose 13
 RATIO_TEST_DISTANCE = 0.7  # default 0.7
 FLANN_INDEX_KDTREE = 0  # do not change
 
@@ -71,7 +75,7 @@ def sift_init():
         for img_temp, img_name in zip(query_img[direct], query_img_name[direct]):
             kp_temp, des_temp = orb.detectAndCompute(img_temp, None)
             if des_temp is None:
-                print(img_name + ": SIFT cannot detect keypoints and descriptor")
+                # print(img_name + ": SIFT cannot detect keypoints and descriptor")
                 kp[direct].append(None)
                 des[direct].append(None)
                 continue
@@ -101,10 +105,13 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des, f
     # SIFT feature detect
     kp_train, des_train = orb.detectAndCompute(img_train, None)
     if des_train is None:
-        print("SIFT cannot detect keypoints and descriptor")
+        # print("SIFT cannot detect keypoints and descriptor")
         # fallback to HOG matching
         selected, img_selected, img_selected_name = hog.hog_match(fd, query_img_hog, query_img_name, img_train_hog)
-        print("%s (HOG)\n\n" % direct_str[selected])
+        # print("%s (HOG)\n\n" % direct_str[selected])
+        if DUMP == 1:
+            img_output = cv2.drawMatches(img_selected, None, img_train, None, None, None, None)
+            plt.imshow(img_output, 'gray'), plt.show()
         img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json')
         return selected, img_mask, origin_point
 
@@ -132,6 +139,7 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des, f
     kp_selected = None
     good_selected = None
     mask_selected = None
+    img_train_matched = None
     img_selected_name = None
     softmax_sift = [[], [], []]
     for direct in range(FRONT, NONE):
@@ -165,22 +173,43 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des, f
                 if match_sum > max_match:
                     max_match = match_sum
                     selected = direct
-                    # img_selected = img_temp
                     img_selected_name = img_temp_name
 
+                    if DUMP == 1:
+                        h, w = img_temp.shape
+                        pts = np.float32([[0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0]]).reshape(-1, 1, 2)
+                        dst = cv2.perspectiveTransform(pts, M)
+
+                        mask_selected = matchesMask
+                        img_selected = img_temp
+                        kp_selected = kp_temp
+                        good_selected = good
+                        img_train_matched = cv2.polylines(img_train, [np.int32(dst)], True, 255, 3, cv2.LINE_AA)
+
     if selected == NONE:
-        print("too less matches found by SIFT")
+        # print("too less matches found by SIFT")
         # fallback to HOG matching
         softmax_sum = sum(softmax_sift[FRONT]) + sum(softmax_sift[BACK]) + sum(softmax_sift[SIDE])
         for direct_temp in range(FRONT, NONE):
             softmax_sift[direct_temp] = softmax_sift[direct_temp] / softmax_sum
-        selected, img_selected, img_selected_name = hog.hog_match(fd, query_img_hog, query_img_name,
-                                                                           img_train_hog, softmax_sift)
-        print("%s (HOG)\n\n" % direct_str[selected])
+        selected, img_selected, img_selected_name = hog.hog_match(fd, query_img_hog, query_img_name, img_train_hog,
+                                                                  softmax_sift)
+        # print("%s (HOG)\n\n" % direct_str[selected])
+        if DUMP == 1:
+            img_output = cv2.drawMatches(img_selected, None, img_train, None, None, None, None)
+            plt.imshow(img_output, 'gray'), plt.show()
         img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json')
         return selected, img_mask, origin_point
     else:
-        print("%s (SIFT)\n\n" % direct_str[selected])
+        # print("%s (SIFT)\n\n" % direct_str[selected])
+        if DUMP == 1:
+            draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
+                               singlePointColor=None,
+                               matchesMask=mask_selected,  # draw only inliers
+                               flags=2)
+            img_output = cv2.drawMatches(img_selected, kp_selected, img_train_matched, kp_train, good_selected, None,
+                                         **draw_params)
+            plt.imshow(img_output, 'gray'), plt.show()
         img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json')
         return selected, img_mask, origin_point
 

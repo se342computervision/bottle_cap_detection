@@ -10,8 +10,10 @@ import pickle
 
 from skimage.feature import hog
 
-HOG_WEIGHT = 0.7  # HOG is good
-HOG_WEIGHT_LESS = 0.3  # SIFT is good
+DEBUG = 0
+
+# HOG_WEIGHT = 0.7  # HOG is good
+# HOG_WEIGHT_LESS = 0.3  # SIFT is good
 HEURIS_BACK_SOFTMAX = 30  # default 50, heuristic choose BACK
 
 FRONT = 0
@@ -118,8 +120,15 @@ def hog_match(fd, img_query, img_query_name, img_train, softmax_sift=None):
             img_final_selected = img_selected[direct]
 
     # heuristic: back SIFT softmax is much larger then front, choose back
+    if DEBUG == 1:
+        print(softmax_sift is not None)
+        print(op_min_dis[FRONT] - 3 < op_min_dis[BACK] < op_min_dis[FRONT] + 3)
+        print((min(op_min_dis) > 101.8 or op_min_dis[FRONT] - 0.5 < op_min_dis[BACK] < op_min_dis[FRONT] + 0.5))
+        print(HEURIS_BACK_SOFTMAX * max(softmax[BACK]) > max(softmax[FRONT]))
+        print(max(softmax_sift[BACK]) > HEURIS_BACK_SOFTMAX * max(softmax_sift[FRONT]))
+        print(img_type == FRONT or img_type == BACK)
     if softmax_sift is not None and op_min_dis[FRONT] - 3 < op_min_dis[BACK] < op_min_dis[FRONT] + 3 and \
-            (min(op_min_dis) > 102 or op_min_dis[FRONT] - 0.5 < op_min_dis[BACK] < op_min_dis[FRONT] + 0.5) \
+            (min(op_min_dis) > 101.8 or op_min_dis[FRONT] - 0.5 < op_min_dis[BACK] < op_min_dis[FRONT] + 0.5) \
             and HEURIS_BACK_SOFTMAX * max(softmax[BACK]) > max(softmax[FRONT]) and \
             max(softmax_sift[BACK]) > HEURIS_BACK_SOFTMAX * max(softmax_sift[FRONT]) and \
             (img_type == FRONT or img_type == BACK):
