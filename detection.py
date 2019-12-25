@@ -1,4 +1,5 @@
 import selectivesearch
+from PIL import Image
 
 from sift import *
 
