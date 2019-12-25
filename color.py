@@ -39,7 +39,5 @@ def colored_mask(filename):
         for w in range(0, lbl.shape[1]):
             if lbl[h, w] == lbl_names['origin'] or lbl0[h, w] == lbl_names0['origin']:
                 return (lbl == lbl_names['edge']).astype(np.uint8), (h, w)
-    print("error")
-    a = 1
 
 # colored_mask('query/back/green.json')
