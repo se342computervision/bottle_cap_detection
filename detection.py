@@ -204,7 +204,7 @@ def cut(img, margin=30):
 def coloring(filename, match_info):
     raw = Image.open(filename)
     raw_mat = np.asarray(raw).copy()
-    for pos, degree, _, mat, mask, origin_point in match_info:
+    for pos, degree, kind, mat, mask, origin_point in match_info:
         if degree > 90:
             degree -= 180
             mask = np.rot90(np.rot90(mask))
@@ -218,7 +218,12 @@ def coloring(filename, match_info):
         ys = (-x0s * np.sin(rad) + y0s * np.cos(rad) + l)
         xs = xs.astype(np.uint32)
         ys = ys.astype(np.uint32)
-        raw_mat[xs, ys] = np.asarray([0, 0, 0])
+        if kind == 0:
+            raw_mat[xs, ys] = np.asarray([255, 0, 0])
+        elif kind == 1:
+            raw_mat[xs, ys] = np.asarray([0, 255, 0])
+        elif kind == 2:
+            raw_mat[xs, ys] = np.asarray([0, 0, 255])
     return Image.fromarray(raw_mat)
 
 
@@ -238,4 +243,13 @@ def run(filename):
 
 
 if __name__ == "__main__":
-    run("your_filename_here.jpg")
+    path = "your/directory/containing/test/images"
+    for file in os.listdir(path):
+        if not file.lower().endswith("jpg"):
+            continue
+        im1 = Image.open(path + file)
+        im1.thumbnail((1000, 1000), Image.ANTIALIAS)
+        im1.show()
+        im2 = run(path + file)
+        im2.thumbnail((1000, 1000), Image.ANTIALIAS)
+        im2.show()
