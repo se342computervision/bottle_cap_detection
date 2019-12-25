@@ -223,7 +223,7 @@ def coloring(filename, match_info):
 
 
 def run(filename):
-    query_img0, query_img_hog0, query_img_name0, kp0, des0 = sift_init()
+    query_img0, query_img_hog0, query_img_name0, kp0, des0, fd0 = sift_init()
     result = []
     for mat, pos in detection(filename):
         im1 = Image.fromarray(mat)
@@ -232,7 +232,7 @@ def run(filename):
         if not updown:
             mat = cut(np.asarray(im2.rotate(degree)))
         selected0, img_mask0, origin_point0 = sift_match(mat, query_img0, query_img_hog0, query_img_name0,
-                                                         kp0, des0)
+                                                         kp0, des0, fd0)
         result.append((pos, degree, selected0, mat, img_mask0, origin_point0))
     return coloring(filename, result)
 
