@@ -26,13 +26,20 @@ def colored_mask(filename):
 
     img = utils.img_b64_to_arr(data['imageData'])
     lbl, lbl_names = utils.labelme_shapes_to_label(img.shape, data['shapes'])
+    data_origin = []
+    for item in data['shapes']:
+        if item['label'] == 'origin':
+            data_origin.append(item)
+    lbl0, lbl_names0 = utils.labelme_shapes_to_label(img.shape, data_origin)
 
     if 'edge' not in lbl_names.keys() or 'origin' not in lbl_names.keys():
         print("not labeled")
         exit()
     for h in range(0, lbl.shape[0]):
         for w in range(0, lbl.shape[1]):
-            if lbl[h, w] == lbl_names['origin']:
+            if lbl[h, w] == lbl_names['origin'] or lbl0[h, w] == lbl_names0['origin']:
                 return (lbl == lbl_names['edge']).astype(np.uint8), (h, w)
+    print("error")
+    a = 1
 
 # colored_mask('query/back/green.json')
