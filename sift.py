@@ -43,9 +43,16 @@ def sift_init():
                 filename = os.path.join(base_path, file_name)
                 if filename[-4:] != '.png' and filename[-4:] != '.jpg':
                     continue
-                query_img_name[direct].append(filename)
-                query_img[direct].append(cv2.imread(filename, cv2.IMREAD_GRAYSCALE))
-                query_img_hog[direct].append(cv2.imread(filename))
+                if base_path == 'query/side':
+                    query_img_name[direct].append(filename)
+                    query_img[direct].append(cv2.imread(filename, cv2.IMREAD_GRAYSCALE))
+                    img_hog_temp = cv2.imread(filename)
+                    img_hog_reverse = cv2.flip(img_hog_temp, -1)  # flipped horizontally & vertically
+                    query_img_hog[direct].append([img_hog_temp, img_hog_reverse])
+                else:
+                    query_img_name[direct].append(filename)
+                    query_img[direct].append(cv2.imread(filename, cv2.IMREAD_GRAYSCALE))
+                    query_img_hog[direct].append(cv2.imread(filename))
             # rotate query img in rotate directory for augmentation
             for folder_name in folder_list:
                 if folder_name != 'rotate':
@@ -64,7 +71,7 @@ def sift_init():
             break  # only traverse top level
 
     # Initiate HOG fd
-    # fd = hog.hog_des(img_hog)
+    # fd = hog.hog_des(query_img_hog)
     fd = hog.load_fd()
 
     # Initiate SIFT detector
@@ -75,7 +82,8 @@ def sift_init():
         for img_temp, img_name in zip(query_img[direct], query_img_name[direct]):
             kp_temp, des_temp = orb.detectAndCompute(img_temp, None)
             if des_temp is None:
-                # print(img_name + ": SIFT cannot detect keypoints and descriptor")
+                if DUMP == 1:
+                    print(img_name + ": SIFT cannot detect keypoints and descriptor")
                 kp[direct].append(None)
                 des[direct].append(None)
                 continue
@@ -105,14 +113,16 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des, f
     # SIFT feature detect
     kp_train, des_train = orb.detectAndCompute(img_train, None)
     if des_train is None:
-        # print("SIFT cannot detect keypoints and descriptor")
-        # fallback to HOG matching
-        selected, img_selected, img_selected_name = hog.hog_match(fd, query_img_hog, query_img_name, img_train_hog)
-        # print("%s (HOG)\n\n" % direct_str[selected])
         if DUMP == 1:
+            print("%s: SIFT cannot detect keypoints and descriptor" % filename)
+        # fallback to HOG matching
+        selected, img_selected, img_selected_name, side_flipped = hog.hog_match(fd, query_img_hog, query_img_name,
+                                                                                img_train_hog)
+        if DUMP == 1:
+            print("%s: %s (HOG)\n\n" % (filename, direct_str[selected]))
             img_output = cv2.drawMatches(img_selected, None, img_train, None, None, None, None)
             plt.imshow(img_output, 'gray'), plt.show()
-        img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json')
+        img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json', side_flipped)
         return selected, img_mask, origin_point
 
     # use FLANN matcher
@@ -192,17 +202,17 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des, f
         softmax_sum = sum(softmax_sift[FRONT]) + sum(softmax_sift[BACK]) + sum(softmax_sift[SIDE])
         for direct_temp in range(FRONT, NONE):
             softmax_sift[direct_temp] = softmax_sift[direct_temp] / softmax_sum
-        selected, img_selected, img_selected_name = hog.hog_match(fd, query_img_hog, query_img_name, img_train_hog,
-                                                                  softmax_sift)
-        # print("%s (HOG)\n\n" % direct_str[selected])
+        selected, img_selected, img_selected_name, side_flipped = hog.hog_match(fd, query_img_hog, query_img_name,
+                                                                                img_train_hog, softmax_sift)
         if DUMP == 1:
+            print("%s: %s (HOG)\n\n" % (filename, direct_str[selected]))
             img_output = cv2.drawMatches(img_selected, None, img_train, None, None, None, None)
             plt.imshow(img_output, 'gray'), plt.show()
-        img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json')
+        img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json', side_flipped)
         return selected, img_mask, origin_point
     else:
-        # print("%s (SIFT)\n\n" % direct_str[selected])
         if DUMP == 1:
+            print("%s: %s (SIFT)\n\n" % (filename, direct_str[selected]))
             draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
                                singlePointColor=None,
                                matchesMask=mask_selected,  # draw only inliers
@@ -215,7 +225,18 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des, f
 
 
 if __name__ == "__main__":
-    input_image0 = cv2.imread("train/DSC02776-7-2868-2668.jpg")
     query_img0, query_img_hog0, query_img_name0, kp0, des0, fd0 = sift_init()
-    selected0, img_mask0, origin_point0 = sift_match(input_image0, query_img0, query_img_hog0, query_img_name0, kp0, des0, fd0)
-    a = 0
+    for base_path, folder_list, file_list in os.walk('train'):
+        for file_name in file_list:
+            filename = os.path.join(base_path, file_name)
+            if filename[-4:] != '.png' and filename[-4:] != '.jpg':
+                continue
+            img_train0 = cv2.imread(filename)
+            selected0, img_mask0, origin_point0 = sift_match(img_train0, query_img0, query_img_hog0, query_img_name0,
+                                                             kp0, des0, fd0)
+# if __name__ == "__main__":
+#     input_image0 = cv2.imread("train/DSC02776-7-2868-2668.jpg")
+#     query_img0, query_img_hog0, query_img_name0, kp0, des0, fd0 = sift_init()
+#     selected0, img_mask0, origin_point0 = sift_match(input_image0, query_img0, query_img_hog0, query_img_name0,
+#     kp0, des0, fd0)
+#     a = 0

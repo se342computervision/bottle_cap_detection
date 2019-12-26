@@ -78,33 +78,55 @@ def hog_match(fd, img_query, img_query_name, img_train, softmax_sift=None):
     :param img_query_name: query image name lists
     :param img_train: target image
     :param softmax_sift: ensemble matching result in SIFT and HOG
-    :return: image type, image matched, matched image json
+    :return: image type, image matched, matched image json, if selected side query image is flipped
     """
     train_temp = cv2.resize(img_train, (512, 512))
     fd_train, hog_train = hog(train_temp, orientations=8, pixels_per_cell=(4, 4),
                               cells_per_block=(1, 1), visualize=True, multichannel=True)
     softmax = [[], [], []]
     img_selected = [None, None, None]
+    side_selected_flipped = False
     op_min_dis = [[], [], []]
     for direct in range(FRONT, NONE):
         op_min = None
         for fd_query, query, filename in zip(fd[direct], img_query[direct], img_query_name[direct]):
             if isinstance(fd_query, list):
-                softmax_tempmax = None
-                for fd_query_temp, query_temp in zip(fd_query, query):
-                    op = np.linalg.norm(fd_query_temp - fd_train)
-                    if op_min is None or op < op_min:
-                        op_min = op
-                        img_selected[direct] = (query_temp, filename)
-                    softmax_temp = np.exp(-op)
-                    if softmax_tempmax is None or softmax_temp > softmax_tempmax:
-                        softmax_tempmax = softmax_temp
-                softmax[direct].append(softmax_tempmax)
+                if len(fd_query) == 2:
+                    assert direct == SIDE
+                    # flipped SIDE
+                    op_origin = np.linalg.norm(fd_query[0] - fd_train)
+                    op_flipped = np.linalg.norm(fd_query[1] - fd_train)
+                    if op_flipped < op_origin:
+                        if op_min is None or op_flipped < op_min:
+                            op_min = op_flipped
+                            img_selected[direct] = (query[1], filename)
+                            side_selected_flipped = True
+                        softmax[direct].append(np.exp(-op_flipped))
+                    else:
+                        if op_min is None or op_origin < op_min:
+                            op_min = op_origin
+                            img_selected[direct] = (query[0], filename)
+                            side_selected_flipped = False
+                        softmax[direct].append(np.exp(-op_origin))
+                else:
+                    # rotated BACK and FRONT
+                    assert direct == FRONT or direct == BACK
+                    softmax_tempmax = None
+                    for fd_query_temp, query_temp in zip(fd_query, query):
+                        op = np.linalg.norm(fd_query_temp - fd_train)
+                        if op_min is None or op < op_min:
+                            op_min = op
+                            img_selected[direct] = (query_temp, filename)
+                        softmax_temp = np.exp(-op)
+                        if softmax_tempmax is None or softmax_temp > softmax_tempmax:
+                            softmax_tempmax = softmax_temp
+                    softmax[direct].append(softmax_tempmax)
             else:
                 op = np.linalg.norm(fd_query - fd_train)
                 if op_min is None or op < op_min:
                     op_min = op
                     img_selected[direct] = (query, filename)
+                    side_selected_flipped = False
                 softmax[direct].append(np.exp(-op))
         op_min_dis[direct] = op_min
     softsum = np.sum(softmax[FRONT]) + np.sum(softmax[BACK]) + np.sum(softmax[SIDE])
@@ -127,7 +149,7 @@ def hog_match(fd, img_query, img_query_name, img_train, softmax_sift=None):
         print(HEURIS_BACK_SOFTMAX * max(softmax[BACK]) > max(softmax[FRONT]))
         print(max(softmax_sift[BACK]) > HEURIS_BACK_SOFTMAX * max(softmax_sift[FRONT]))
         print(img_type == FRONT or img_type == BACK)
-    if softmax_sift is not None and op_min_dis[FRONT] - 3 < op_min_dis[BACK] < op_min_dis[FRONT] + 3 and \
+    if softmax_sift is not None and op_min_dis[FRONT] - 2.83 < op_min_dis[BACK] < op_min_dis[FRONT] + 2.83 and \
             (min(op_min_dis) > 101.8 or op_min_dis[FRONT] - 0.5 < op_min_dis[BACK] < op_min_dis[FRONT] + 0.5) \
             and HEURIS_BACK_SOFTMAX * max(softmax[BACK]) > max(softmax[FRONT]) and \
             max(softmax_sift[BACK]) > HEURIS_BACK_SOFTMAX * max(softmax_sift[FRONT]) and \
@@ -141,4 +163,7 @@ def hog_match(fd, img_query, img_query_name, img_train, softmax_sift=None):
                     img_selected[BACK] = (query, filename)
         img_final_selected = img_selected[BACK]
 
-    return img_type, img_final_selected[0], img_final_selected[1]
+    if img_type != SIDE:
+        side_selected_flipped = False
+
+    return img_type, img_final_selected[0], img_final_selected[1], side_selected_flipped
