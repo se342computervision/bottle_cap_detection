@@ -201,21 +201,98 @@ def cut(img, margin=30):
     return img[up:down, left:right]
 
 
+def get_zero_point(mat, degree):
+    # No one actually knows what I am doing
+    if degree <= 90:
+        x1 = 0
+        y1 = 0
+        while x1 < mat.shape[0] - 1:
+            if not np.all(np.equal(mat[x1, 0], [0, 0, 0])):
+                break
+            else:
+                x1 += 1
+
+        while y1 < mat.shape[1] - 1:
+            if not np.all(np.equal(mat[0, y1], [0, 0, 0])):
+                break
+            else:
+                y1 += 1
+
+        x2 = mat.shape[0] - 1
+        y2 = 0
+        while x2 > 0:
+            if not np.all(np.equal(mat[x2, 0], [0, 0, 0])):
+                break
+            else:
+                x2 -= 1
+        while y2 < mat.shape[1] - 1:
+            if not np.all(np.equal(mat[mat.shape[0] - 1, y2], [0, 0, 0])):
+                break
+            else:
+                y2 += 1
+
+        if y1 != mat.shape[1] - 1:
+            x = (x2 * y2 / (x2 + 1 - mat.shape[0]) - y1) / (y2 / (x2 + 1 - mat.shape[0]) - y1 / x1)
+            y = (x1 - x) / x1 * y1
+            return int(x), int(y)
+        else:
+            return int(x2), 0
+    else:
+        x1 = mat.shape[0] - 1
+        y1 = 0
+        while x1 > 0:
+            if not np.all(np.equal(mat[x1, 0], [0, 0, 0])):
+                break
+            else:
+                x1 -= 1
+
+        while y1 < mat.shape[1] - 1:
+            if not np.all(np.equal(mat[mat.shape[0] - 1, y1], [0, 0, 0])):
+                break
+            else:
+                y1 += 1
+
+        x2 = mat.shape[0] - 1
+        y2 = mat.shape[1] - 1
+        while x2 > 0:
+            if not np.all(np.equal(mat[x2, mat.shape[1] - 1], [0, 0, 0])):
+                break
+            else:
+                x2 -= 1
+        while y2 > 0:
+            if not np.all(np.equal(mat[mat.shape[0] - 1, y2], [0, 0, 0])):
+                break
+            else:
+                y2 -= 1
+        if y1 != 0:
+            x = ((-mat.shape[0] + 1) / (mat.shape[0] - 1 - x2) * (y2 - mat.shape[1] + 1) + y2 - y1 + (
+                    mat.shape[0] - 1) / (mat.shape[0] - 1 - x1) * y1) / (
+                        y1 / (mat.shape[0] - 1 - x1) - (y2 - mat.shape[1] + 1) / (mat.shape[0] - 1 - x2))
+            y = (x - mat.shape[0] + 1) / (mat.shape[0] - 1 - x1) * y1 + y1
+            return int(x), int(y)
+        else:
+            return int(x1), int(y1)
+
+
 def coloring(filename, match_info):
     raw = Image.open(filename)
     raw_mat = np.asarray(raw).copy()
     for pos, degree, kind, mat, mask, origin_point in match_info:
-        if degree > 90:
-            degree -= 180
-            mask = np.rot90(np.rot90(mask))
 
         l = pos[0]
         h = pos[1]
         rad = np.deg2rad(degree)
         mask = np.asarray(Image.fromarray(mask).resize((mat.shape[1], mat.shape[0])))
         x0s, y0s = np.where(mask != 0)
-        xs = (x0s * np.cos(rad) + y0s * np.sin(rad) + h)
-        ys = (-x0s * np.sin(rad) + y0s * np.cos(rad) + l)
+        if degree == 0:
+            xs = x0s + h
+            ys = y0s + l
+        else:
+            x10, y10 = get_zero_point(mat, degree)
+            a = -x10 * np.cos(rad) - y10 * np.sin(rad) + h
+            b = x10 * np.sin(rad) - y10 * np.cos(rad) + l
+            xs = x0s * np.cos(rad) + y0s * np.sin(rad) + a
+            ys = -x0s * np.sin(rad) + y0s * np.cos(rad) + b
         xs = xs.astype(np.uint32)
         ys = ys.astype(np.uint32)
         if kind == 0:
