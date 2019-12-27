@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from PIL import Image
 
 # dump matching result
-DUMP = 1
+DUMP = 0
 
 # match threshold
 MIN_MATCH_COUNT = 13  # default 10, choose 13
@@ -30,7 +30,7 @@ direct_lower_str = ['front', 'back', 'side']
 
 def sift_init():
     """
-    init SIFT descriptors and keypoints for all images in /query
+    init SIFT descriptors and keypoints for all images in query/
     :return: just pass them to sift_match
     """
     query_img_name = [[], [], []]
