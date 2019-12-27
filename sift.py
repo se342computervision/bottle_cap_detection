@@ -10,9 +10,10 @@ import hog
 import color
 import rotation
 from matplotlib import pyplot as plt
+from PIL import Image
 
 # dump matching result
-DUMP = 0
+DUMP = 1
 
 # match threshold
 MIN_MATCH_COUNT = 13  # default 10, choose 13
@@ -93,7 +94,7 @@ def sift_init():
 
 
 # load query images
-def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des, fd):
+def sift_match(query_img, query_img_hog, query_img_name, kp, des, fd):
     """
     :param input_image
     :param query_img
@@ -104,6 +105,8 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des, f
     :param fd
     :return: bottle cap position(FRONT=0, BACK=1, SIDE=2), mask for coloring, origin point on mask
     """
+    input_image = cv2.imread("tmp.jpg")
+
     # Initiate SIFT detector
     orb = cv2.ORB_create()
 
@@ -119,7 +122,7 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des, f
         selected, img_selected, img_selected_name, side_flipped = hog.hog_match(fd, query_img_hog, query_img_name,
                                                                                 img_train_hog)
         if DUMP == 1:
-            print("%s: %s (HOG)\n\n" % (filename, direct_str[selected]))
+            # print("%s: %s (HOG)\n\n" % (filename, direct_str[selected]))
             img_output = cv2.drawMatches(img_selected, None, img_train, None, None, None, None)
             plt.imshow(img_output, 'gray'), plt.show()
         img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json', side_flipped)
@@ -137,8 +140,8 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des, f
                 continue
             matched = flann.knnMatch(np.asarray(des_temp, np.float32), np.asarray(des_train, np.float32), k=2)
             if len(matched) == 1:
-                print("error")
-                exit()
+                matches[direct].append(None)
+                continue
             matches[direct].append(matched)
 
     # store all the good matches as per Lowe's ratio test.
@@ -205,14 +208,14 @@ def sift_match(input_image, query_img, query_img_hog, query_img_name, kp, des, f
         selected, img_selected, img_selected_name, side_flipped = hog.hog_match(fd, query_img_hog, query_img_name,
                                                                                 img_train_hog, softmax_sift)
         if DUMP == 1:
-            print("%s: %s (HOG)\n\n" % (filename, direct_str[selected]))
-            img_output = cv2.drawMatches(img_selected, None, img_train, None, None, None, None)
+            # print("%s: %s (HOG)\n\n" % (filename, direct_str[selected]))
+            img_output = cv2.drawMatches(img_selected, None, img_train_hog, None, None, None, None)
             plt.imshow(img_output, 'gray'), plt.show()
         img_mask, origin_point = color.colored_mask(str(img_selected_name.split('.')[0]) + '.json', side_flipped)
         return selected, img_mask, origin_point
     else:
         if DUMP == 1:
-            print("%s: %s (SIFT)\n\n" % (filename, direct_str[selected]))
+            # print("%s: %s (SIFT)\n\n" % (filename, direct_str[selected]))
             draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
                                singlePointColor=None,
                                matchesMask=mask_selected,  # draw only inliers
@@ -232,7 +235,9 @@ if __name__ == "__main__":
             if filename[-4:] != '.png' and filename[-4:] != '.jpg':
                 continue
             img_train0 = cv2.imread(filename)
-            selected0, img_mask0, origin_point0 = sift_match(img_train0, query_img0, query_img_hog0, query_img_name0,
+            img_train_rgb = cv2.cvtColor(img_train0, cv2.COLOR_BGR2RGB)
+            Image.fromarray(img_train_rgb).save("tmp.jpg")
+            selected0, img_mask0, origin_point0 = sift_match(query_img0, query_img_hog0, query_img_name0,
                                                              kp0, des0, fd0)
 # if __name__ == "__main__":
 #     input_image0 = cv2.imread("train/DSC02776-7-2868-2668.jpg")
