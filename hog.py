@@ -10,11 +10,11 @@ import pickle
 
 from skimage.feature import hog
 
-DEBUG = 1
+DEBUG = 0
 
 # HOG_WEIGHT = 0.7  # HOG is good
 # HOG_WEIGHT_LESS = 0.3  # SIFT is good
-HEURIS_BACK_SOFTMAX = 30  # default 50, heuristic choose BACK
+HEURIS_BACK_SOFTMAX = 20  # default 50, heuristic choose BACK
 
 FRONT = 0
 BACK = 1

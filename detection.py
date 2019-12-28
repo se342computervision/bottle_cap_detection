@@ -321,7 +321,7 @@ def run(filename):
 
 
 if __name__ == "__main__":
-    path = "your/directory/containing/test/images"
+    path = "/Users/pro/sjtu/31/cv/selected/瓶盖/test/"
     for file in os.listdir(path):
         if not file.lower().endswith("jpg"):
             continue
