@@ -71,6 +71,20 @@ def sift_init():
                         query_img_hog[direct].append(img_hog_aug)
             break  # only traverse top level
 
+    # in case of inconsistency
+    img_file_map = dict()
+    for direct in range(FRONT, NONE):
+        for img_name_temp, img_temp, img_hog_temp in zip(query_img_name[direct], query_img[direct],
+                                                         query_img_hog[direct]):
+            img_file_map[img_name_temp] = [img_temp, img_hog_temp]
+        query_img_name[direct].sort()
+    query_img = [[], [], []]
+    query_img_hog = [[], [], []]
+    for direct in range(FRONT, NONE):
+        for img_name_temp in query_img_name[direct]:
+            query_img[direct].append(img_file_map[img_name_temp][0])
+            query_img_hog[direct].append(img_file_map[img_name_temp][1])
+
     # Initiate HOG fd
     # fd = hog.hog_des(query_img_hog)
     fd = hog.load_fd()
