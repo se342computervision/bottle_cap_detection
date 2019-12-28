@@ -278,7 +278,6 @@ def coloring(filename, match_info):
     raw = Image.open(filename)
     raw_mat = np.asarray(raw).copy()
     for pos, degree, kind, mat, mask, origin_point in match_info:
-
         l = pos[0]
         h = pos[1]
         rad = np.deg2rad(degree)
@@ -295,12 +294,22 @@ def coloring(filename, match_info):
             ys = -x0s * np.sin(rad) + y0s * np.cos(rad) + b
         xs = xs.astype(np.uint32)
         ys = ys.astype(np.uint32)
+        r = raw_mat[xs, ys][:, 0]
+        g = raw_mat[xs, ys][:, 1]
+        b = raw_mat[xs, ys][:, 2]
         if kind == 0:
-            raw_mat[xs, ys] = np.asarray([255, 0, 0])
+            r = np.average(np.concatenate([[r], [np.ones_like(r) * 255]]), axis=0)
+            g = np.average(np.concatenate([[g], [np.ones_like(g) * 0]]), axis=0)
+            b = np.average(np.concatenate([[b], [np.ones_like(b) * 0]]), axis=0)
         elif kind == 1:
-            raw_mat[xs, ys] = np.asarray([0, 255, 0])
+            r = np.average(np.concatenate([[r], [np.ones_like(r) * 0]]), axis=0)
+            g = np.average(np.concatenate([[g], [np.ones_like(g) * 255]]), axis=0)
+            b = np.average(np.concatenate([[b], [np.ones_like(b) * 0]]), axis=0)
         elif kind == 2:
-            raw_mat[xs, ys] = np.asarray([0, 0, 255])
+            r = np.average(np.concatenate([[r], [np.ones_like(r) * 0]]), axis=0)
+            g = np.average(np.concatenate([[g], [np.ones_like(g) * 0]]), axis=0)
+            b = np.average(np.concatenate([[b], [np.ones_like(b) * 255]]), axis=0)
+        raw_mat[xs, ys] = np.asarray([r, g, b]).transpose().astype(np.uint8)
     return Image.fromarray(raw_mat)
 
 
@@ -321,7 +330,7 @@ def run(filename):
 
 
 if __name__ == "__main__":
-    path = "your/directory/containing/test/images"
+    path = "your/directory/containing/test/images/"
     for file in os.listdir(path):
         if not file.lower().endswith("jpg"):
             continue
