@@ -10,13 +10,13 @@ import numpy as np
 from labelme import utils
 
 
-def colored_mask(filename, side_flipped=False):
+def colored_mask(jsondata, side_flipped=False):
     """
-    :param filename: image label json file name
+    :param jsondata: image label json
     :param side_flipped: flip SIDE mask
     :return: colored mask and origin point
     """
-    data = json.load(open(filename))
+    data = jsondata
 
     img = utils.img_b64_to_arr(data['imageData'])
     # lbl, lbl_names = utils.labelme_shapes_to_label(img.shape, data['shapes'])
@@ -34,7 +34,7 @@ def colored_mask(filename, side_flipped=False):
     lbl0 = utils.shapes_to_label(img.shape, data_origin, lbl_names0)
 
     if 'edge' not in lbl_names.keys() or 'origin' not in lbl_names.keys():
-        print("%s not labeled", filename)
+        print("not labeled")
         exit()
     for h in range(0, lbl.shape[0]):
         for w in range(0, lbl.shape[1]):
@@ -45,7 +45,7 @@ def colored_mask(filename, side_flipped=False):
                     mask = np.rot90(mask, 2)
                     origin_point = (img.shape[0] - h, img.shape[1] - w)
                 return mask, origin_point
-    print("%s not labeled", filename)
+    print("not labeled")
     exit()
 
 

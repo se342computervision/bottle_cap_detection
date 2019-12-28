@@ -5,3 +5,4 @@ train/
 .idea/
 __pycache__/
 *.jpg
+*.dat
