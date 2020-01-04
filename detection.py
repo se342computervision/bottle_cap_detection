@@ -322,8 +322,10 @@ def run(filename):
         degree, updown = rotate(mat)
         if not updown:
             mat = cut(np.asarray(im2.rotate(degree)))
-        Image.fromarray(mat).save("tmp.jpg")
-        selected0, img_mask0, origin_point0 = sift_match(sift_data)
+        import uuid
+        random_filename = str(uuid.uuid4()) + ".jpg"
+        Image.fromarray(mat).save(random_filename)
+        selected0, img_mask0, origin_point0 = sift_match(random_filename, sift_data)
         result.append((pos, degree, selected0, mat, img_mask0, origin_point0))
     return coloring(filename, result)
 

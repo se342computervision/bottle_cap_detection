@@ -139,7 +139,7 @@ def sift_init():
 
 
 # load query images
-def sift_match(sift_data):
+def sift_match(filename, sift_data):
     """
     :param sift_data
     :return: bottle cap position(FRONT=0, BACK=1, SIDE=2), mask for coloring, origin point on mask
@@ -160,7 +160,8 @@ def sift_match(sift_data):
             kp[direct].append(kp_temp)
             # des[direct].append(point[6])
 
-    input_image = cv2.imread("tmp.jpg")
+    input_image = cv2.imread(filename)
+    os.remove(filename)
 
     # Initiate SIFT detector
     orb = cv2.ORB_create()
