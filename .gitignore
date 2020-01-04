@@ -6,3 +6,5 @@ train/
 __pycache__/
 *.jpg
 *.dat
+caps/
+.DS_Store

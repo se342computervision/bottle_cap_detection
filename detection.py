@@ -1,8 +1,7 @@
 import selectivesearch
 from PIL import Image
-
 from sift import *
-
+import time
 
 def confidence(img, x, y, w, h):
     if w * h > 200000:
@@ -313,7 +312,7 @@ def coloring(filename, match_info):
     return Image.fromarray(raw_mat)
 
 
-def run(filename):
+def run_detection(filename):
     sift_data = sift_init()
     result = []
     for mat, pos in detection(filename):
@@ -331,13 +330,18 @@ def run(filename):
 
 
 if __name__ == "__main__":
-    path = "your/directory/containing/test/images/"
+    path = "your/path"
     for file in os.listdir(path):
         if not file.lower().endswith("jpg"):
             continue
+        # t1 = time.time()
         im1 = Image.open(path + file)
         im1.thumbnail((1000, 1000), Image.ANTIALIAS)
         im1.show()
-        im2 = run(path + file)
+        im2 = run_detection(path + file)
         im2.thumbnail((1000, 1000), Image.ANTIALIAS)
+        # t2 = time.time()
+        # print("time: ", t2-t1)
         im2.show()
+
+    
