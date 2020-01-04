@@ -302,17 +302,17 @@ def coloring(filename, match_info):
         g = raw_mat[xs, ys][:, 1]
         b = raw_mat[xs, ys][:, 2]
         if kind == 0:
-            r = np.average(np.concatenate([[r], [np.ones_like(r) * 255]]), axis=0)
-            g = np.average(np.concatenate([[g], [np.ones_like(g) * 0]]), axis=0)
-            b = np.average(np.concatenate([[b], [np.ones_like(b) * 0]]), axis=0)
+            r = np.average(np.concatenate([[r], [np.ones_like(r) * 0], [np.ones_like(r) * 0]]), axis=0)
+            g = np.average(np.concatenate([[g], [np.ones_like(g) * 255], [np.ones_like(g) * 255]]), axis=0)
+            b = np.average(np.concatenate([[b], [np.ones_like(b) * 255], [np.ones_like(b) * 255]]), axis=0)
         elif kind == 1:
-            r = np.average(np.concatenate([[r], [np.ones_like(r) * 0]]), axis=0)
-            g = np.average(np.concatenate([[g], [np.ones_like(g) * 255]]), axis=0)
-            b = np.average(np.concatenate([[b], [np.ones_like(b) * 0]]), axis=0)
+            r = np.average(np.concatenate([[r], [np.ones_like(r) * 0], [np.ones_like(r) * 0]]), axis=0)
+            g = np.average(np.concatenate([[g], [np.ones_like(g) * 255], [np.ones_like(g) * 255]]), axis=0)
+            b = np.average(np.concatenate([[b], [np.ones_like(b) * 0], [np.ones_like(b) * 0]]), axis=0)
         elif kind == 2:
-            r = np.average(np.concatenate([[r], [np.ones_like(r) * 0]]), axis=0)
-            g = np.average(np.concatenate([[g], [np.ones_like(g) * 0]]), axis=0)
-            b = np.average(np.concatenate([[b], [np.ones_like(b) * 255]]), axis=0)
+            r = np.average(np.concatenate([[r], [np.ones_like(r) * 0], [np.ones_like(r) * 0]]), axis=0)
+            g = np.average(np.concatenate([[g], [np.ones_like(g) * 0], [np.ones_like(g) * 0]]), axis=0)
+            b = np.average(np.concatenate([[b], [np.ones_like(b) * 255], [np.ones_like(b) * 255]]), axis=0)
         raw_mat[xs, ys] = np.asarray([r, g, b]).transpose().astype(np.uint8)
         x = int(x)
         y = int(y)
