@@ -36,7 +36,7 @@ class imageProcessing(QWidget):
         selectLabel = QLabel('Target Directory: ')
         selectBtn = QPushButton("Select")
         detectBtn = QPushButton("Detect")
-        saveBtn = QPushButton("Save")
+        # saveBtn = QPushButton("Save")
         cancelBtn = QPushButton("Cancel")
         self.imgLabel_raw = QLabel()
         self.imgLabel_detect = QLabel()
@@ -47,7 +47,7 @@ class imageProcessing(QWidget):
         # connection
         detectBtn.clicked.connect(self.detect)
         selectBtn.clicked.connect(self.load_image)
-        saveBtn.clicked.connect(self.save)
+        # saveBtn.clicked.connect(self.save)
         cancelBtn.clicked.connect(self.close)
         prevBtn.clicked.connect(self.prev_image)
         nextBtn.clicked.connect(self.next_image)
