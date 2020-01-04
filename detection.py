@@ -282,33 +282,41 @@ def coloring(filename, match_info):
         rad = np.deg2rad(degree)
         mask = np.asarray(Image.fromarray(mask).resize((mat.shape[1], mat.shape[0])))
         x0s, y0s = np.where(mask != 0)
+        x0, y0 = origin_point
         if degree == 0:
             xs = x0s + h
             ys = y0s + l
+            x = x0 + h
+            y = y0 + l
         else:
             x10, y10 = get_zero_point(mat, degree)
             a = -x10 * np.cos(rad) - y10 * np.sin(rad) + h
             b = x10 * np.sin(rad) - y10 * np.cos(rad) + l
             xs = x0s * np.cos(rad) + y0s * np.sin(rad) + a
             ys = -x0s * np.sin(rad) + y0s * np.cos(rad) + b
+            x = x0 * np.cos(rad) + y0 * np.sin(rad) + a
+            y = -x0 * np.sin(rad) + y0 * np.cos(rad) + b
         xs = xs.astype(np.uint32)
         ys = ys.astype(np.uint32)
         r = raw_mat[xs, ys][:, 0]
         g = raw_mat[xs, ys][:, 1]
         b = raw_mat[xs, ys][:, 2]
         if kind == 0:
-            r = np.average(np.concatenate([[r], [np.ones_like(r) * 255]]), axis=0)
-            g = np.average(np.concatenate([[g], [np.ones_like(g) * 0]]), axis=0)
-            b = np.average(np.concatenate([[b], [np.ones_like(b) * 0]]), axis=0)
+            r = np.average(np.concatenate([[r], [np.ones_like(r) * 0], [np.ones_like(r) * 0]]), axis=0)
+            g = np.average(np.concatenate([[g], [np.ones_like(g) * 255], [np.ones_like(g) * 255]]), axis=0)
+            b = np.average(np.concatenate([[b], [np.ones_like(b) * 255], [np.ones_like(b) * 255]]), axis=0)
         elif kind == 1:
-            r = np.average(np.concatenate([[r], [np.ones_like(r) * 0]]), axis=0)
-            g = np.average(np.concatenate([[g], [np.ones_like(g) * 255]]), axis=0)
-            b = np.average(np.concatenate([[b], [np.ones_like(b) * 0]]), axis=0)
+            r = np.average(np.concatenate([[r], [np.ones_like(r) * 0], [np.ones_like(r) * 0]]), axis=0)
+            g = np.average(np.concatenate([[g], [np.ones_like(g) * 255], [np.ones_like(g) * 255]]), axis=0)
+            b = np.average(np.concatenate([[b], [np.ones_like(b) * 0], [np.ones_like(b) * 0]]), axis=0)
         elif kind == 2:
-            r = np.average(np.concatenate([[r], [np.ones_like(r) * 0]]), axis=0)
-            g = np.average(np.concatenate([[g], [np.ones_like(g) * 0]]), axis=0)
-            b = np.average(np.concatenate([[b], [np.ones_like(b) * 255]]), axis=0)
+            r = np.average(np.concatenate([[r], [np.ones_like(r) * 0], [np.ones_like(r) * 0]]), axis=0)
+            g = np.average(np.concatenate([[g], [np.ones_like(g) * 0], [np.ones_like(g) * 0]]), axis=0)
+            b = np.average(np.concatenate([[b], [np.ones_like(b) * 255], [np.ones_like(b) * 255]]), axis=0)
         raw_mat[xs, ys] = np.asarray([r, g, b]).transpose().astype(np.uint8)
+        x = int(x)
+        y = int(y)
+        raw_mat[x - 10: x + 10, y - 10: y + 10] = np.asarray([255, 255, 255])
     return Image.fromarray(raw_mat)
 
 
@@ -321,8 +329,10 @@ def run_detection(filename):
         degree, updown = rotate(mat)
         if not updown:
             mat = cut(np.asarray(im2.rotate(degree)))
-        Image.fromarray(mat).save("tmp.jpg")
-        selected0, img_mask0, origin_point0 = sift_match(sift_data)
+        import uuid
+        random_filename = str(uuid.uuid4()) + ".jpg"
+        Image.fromarray(mat).save(random_filename)
+        selected0, img_mask0, origin_point0 = sift_match(random_filename, sift_data)
         result.append((pos, degree, selected0, mat, img_mask0, origin_point0))
     return coloring(filename, result)
 
