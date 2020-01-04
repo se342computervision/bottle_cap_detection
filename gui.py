@@ -23,7 +23,8 @@ class imageProcessing(QWidget):
         self.ksize = 3
         self.sigma = 1.0
         self.cur_image = np.ndarray(())
-        self.raw_imgs = []
+        self.raw_imgs=[]
+        self.raw_img_files = []
         self.detect_imgs = []
         self.page = 0
 
@@ -34,10 +35,10 @@ class imageProcessing(QWidget):
         self.setGeometry(self.left, self.top, self.width, self.height)
 
         selectLabel = QLabel('Target Directory: ')
-        selectBtn = QPushButton("Select")
-        detectBtn = QPushButton("Detect")
+        selectBtn = QPushButton("Select Images")
+        detectBtn = QPushButton("Detect All")
         # saveBtn = QPushButton("Save")
-        cancelBtn = QPushButton("Cancel")
+        cancelBtn = QPushButton("Quit")
         self.imgLabel_raw = QLabel()
         self.imgLabel_detect = QLabel()
 
@@ -95,9 +96,13 @@ class imageProcessing(QWidget):
 
     def show_image(self):
         # show image
-        im = Image.open(self.raw_imgs[self.page])
-        im = im.convert("RGBA")
-        im.thumbnail((450, 450), Image.ANTIALIAS)
+        # im = Image.open(self.raw_imgs[self.page])
+        # im = im.convert("RGBA")
+        # im.thumbnail((450, 450), Image.ANTIALIAS)
+        if not self.raw_imgs:
+            QMessageBox.information(self, 'Fail', 'No image selected.')
+            return
+        im = self.raw_imgs[self.page]
         img = ImageQt.ImageQt(im)
         qimg = QPixmap.fromImage(img)
         self.imgLabel_raw.setPixmap(qimg)
@@ -111,9 +116,12 @@ class imageProcessing(QWidget):
             img = QPixmap.fromImage(img)
             self.imgLabel_detect.setPixmap(img)
             self.imgLabel_detect.resize(1, 1)
+        if not self.detect_imgs:
+            self.imgLabel_detect.clear()
 
     def detect(self):
-        for file in self.raw_imgs:
+        self.detect_imgs = []
+        for file in self.raw_img_files:
             im2 = run_detection(file)
             im2 = im2.convert("RGBA")
             im2.thumbnail((450, 450), Image.ANTIALIAS)
@@ -126,8 +134,16 @@ class imageProcessing(QWidget):
         if not files:
             QMessageBox.information(self, 'Fail', 'No image selected.')
             return
-        self.raw_imgs = files
-        print(self.raw_imgs)
+        self.raw_img_files = files
+        self.raw_imgs = []
+        self.detect_imgs = []
+        for file in files:
+            im = Image.open(file)
+            im = im.convert("RGBA")
+            im.thumbnail((450, 450), Image.ANTIALIAS)
+            self.raw_imgs.append(im)
+
+        print(self.raw_img_files)
         # show image
         self.show_image()
 
